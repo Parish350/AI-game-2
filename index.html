@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Speed Racer GP 3D - High-Octane Arcade Racing</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Three.js 3D Library with CDN Fallbacks -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        if (typeof THREE === 'undefined') {
+            document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"><\/script>');
+        }
+    </script>
+</head>
+<body>
+    <!-- 3D WebGL Canvas -->
+    <canvas id="game-canvas"></canvas>
+
+    <!-- In-Game HUD Layer -->
+    <div id="hud">
+        <!-- Top Bar: Music Player, Race Stats, Radar Minimap -->
+        <div class="hud-top">
+            <!-- Procedural Synthwave Audio Player -->
+            <div class="audio-bar interactive">
+                <div class="audio-info">
+                    <span class="audio-label">🎵 BGM SYNTH</span>
+                    <span id="track-title" class="track-title">Neon Highway</span>
+                </div>
+                <div class="audio-controls">
+                    <button id="btn-play-pause" class="icon-btn" title="Play/Pause Music">⏸</button>
+                    <button id="btn-next-track" class="icon-btn" title="Next Song">⏭</button>
+                    <button id="btn-mute" class="icon-btn" title="Mute All Audio">🔊</button>
+                </div>
+                <div class="vol-slider-wrap">
+                    <span>VOL</span>
+                    <input type="range" id="slider-music" class="audio-slider" min="0" max="1" step="0.05" value="0.55" title="Music Volume">
+                    <span>SFX</span>
+                    <input type="range" id="slider-sfx" class="audio-slider" min="0" max="1" step="0.05" value="0.7" title="SFX Volume">
+                </div>
+            </div>
+
+            <!-- Race Lap & Rank Stats -->
+            <div class="race-stats-box">
+                <div class="stat-item">
+                    <span class="stat-label">POSITION</span>
+                    <div id="hud-pos" class="stat-value gold">1<sup>ST</sup> <span style="font-size:0.6em; color:#94a3b8;">/ 6</span></div>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">LAP / TURN</span>
+                    <div id="hud-lap" class="stat-value">LAP 1 / 1</div>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">TIME</span>
+                    <div id="hud-time" class="stat-value">00:00.00</div>
+                </div>
+            </div>
+
+            <!-- Radar Minimap Card -->
+            <div class="minimap-card">
+                <canvas id="minimap-canvas" width="170" height="170"></canvas>
+                <div class="minimap-legend">
+                    <span><span class="legend-dot" style="background:#00e5ff;"></span>YOU</span>
+                    <span><span class="legend-dot" style="background:#ff1744;"></span>CPU</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Center Notification Banner & Drift Score -->
+        <div id="hud-banner" class="center-banner"></div>
+        <div id="hud-drift-score" class="drift-badge">DRIFT: +0</div>
+
+        <!-- Bottom Bar: Camera / Reset buttons, Speedometer Cluster, Nitro Meter -->
+        <div class="hud-bottom">
+            <div class="quick-actions interactive">
+                <button id="btn-pause" class="hud-btn pause-hud-btn" title="Pause Game [ESC / P]">⏸ PAUSE [ESC / P]</button>
+                <button id="btn-cam-switch" class="hud-btn" title="Switch Camera View">🎥 CAMERA [C]</button>
+                <button id="btn-car-reset" class="hud-btn" title="Reset Car on Track">🔄 RESET [R]</button>
+            </div>
+
+            <!-- Central Speedometer & RPM Cluster -->
+            <div class="gauge-cluster">
+                <div class="speed-readout">
+                    <span id="hud-speed">0</span>
+                    <span class="speed-unit">KM/H</span>
+                    <span id="hud-gear" class="gear-badge">1</span>
+                </div>
+                <div class="rpm-container">
+                    <div id="hud-rpm-fill"></div>
+                </div>
+            </div>
+
+            <!-- Nitro Boost Gauge -->
+            <div class="nitro-container">
+                <div class="nitro-header">
+                    <span>⚡ NITRO BOOST</span>
+                </div>
+                <div class="nitro-bar-track">
+                    <div id="hud-nitro-fill"></div>
+                </div>
+                <span class="nitro-hint">HOLD SHIFT TO BOOST</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3... 2... 1... GO! Countdown Overlay -->
+    <div id="countdown-overlay">
+        <div id="countdown-num">3</div>
+    </div>
+
+    <!-- Start Race Dialog -->
+    <div id="start-modal" class="modal-overlay">
+        <div class="modal-card">
+            <h1 class="game-title">⚡ SPEED RACER GP ⚡</h1>
+            <p class="game-subtitle">High-Octane 3D Arcade Cyber Racing</p>
+
+            <h3 style="font-family:'Orbitron'; font-size:14px; color:#94a3b8; letter-spacing:1px; margin-top:4px;">
+                STARTING GRID (6 COMPETITORS)
+            </h3>
+            <div class="driver-lineup">
+                <div class="driver-card" style="border-color:#00e5ff;">
+                    <div class="driver-badge" style="background:#00e5ff;"></div>
+                    <div class="driver-name" style="color:#00e5ff;">PLAYER (YOU)</div>
+                    <div class="driver-type">Velocity GT #1</div>
+                </div>
+                <div class="driver-card">
+                    <div class="driver-badge" style="background:#ff1744;"></div>
+                    <div class="driver-name">VIPER (CPU)</div>
+                    <div class="driver-type">Hyper Red #7</div>
+                </div>
+                <div class="driver-card">
+                    <div class="driver-badge" style="background:#37474f;"></div>
+                    <div class="driver-name">SHADOW (CPU)</div>
+                    <div class="driver-type">Stealth GT #13</div>
+                </div>
+                <div class="driver-card">
+                    <div class="driver-badge" style="background:#ff6d00;"></div>
+                    <div class="driver-name">BLAZE (CPU)</div>
+                    <div class="driver-type">Flame Sport #24</div>
+                </div>
+                <div class="driver-card">
+                    <div class="driver-badge" style="background:#00e676;"></div>
+                    <div class="driver-name">APEX (CPU)</div>
+                    <div class="driver-type">Toxic Lime #88</div>
+                </div>
+                <div class="driver-card">
+                    <div class="driver-badge" style="background:#d500f9;"></div>
+                    <div class="driver-name">THUNDER (CPU)</div>
+                    <div class="driver-type">Royal Purple #99</div>
+                </div>
+            </div>
+
+            <!-- Controls Guide -->
+            <div class="controls-info">
+                <div class="control-item"><span class="key-badge">W / ↑</span> Accelerate</div>
+                <div class="control-item"><span class="key-badge">S / ↓</span> Brake / Reverse</div>
+                <div class="control-item"><span class="key-badge">A / D</span> Steer Left / Right</div>
+                <div class="control-item"><span class="key-badge">SPACE</span> Handbrake Drift</div>
+                <div class="control-item"><span class="key-badge">SHIFT</span> Nitro Boost ⚡</div>
+                <div class="control-item"><span class="key-badge">C</span> Switch Camera</div>
+            </div>
+
+            <!-- Race Distance / Lap Selector -->
+            <div class="lap-select-container">
+                <span class="lap-select-label">🏁 RACE DISTANCE:</span>
+                <div class="lap-btn-group">
+                    <button type="button" class="lap-opt-btn active" data-laps="1">1 TURN (1 Lap)</button>
+                    <button type="button" class="lap-opt-btn" data-laps="3">3 TURNS (3 Laps)</button>
+                    <button type="button" class="lap-opt-btn" data-laps="5">5 TURNS (5 Laps)</button>
+                </div>
+            </div>
+
+            <button id="btn-start-race" class="cta-btn">START RACE 🏁</button>
+        </div>
+    </div>
+
+    <!-- Race Finished Podium Screen -->
+    <div id="finish-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-card">
+            <h1 class="game-title">🏆 RACE COMPLETE 🏆</h1>
+            <p class="game-subtitle">Final Standings & Leaderboard</p>
+
+            <table class="results-table">
+                <thead>
+                    <tr>
+                        <th>RANK</th>
+                        <th>DRIVER</th>
+                        <th>CAR #</th>
+                        <th>BEST LAP</th>
+                        <th>TOTAL TIME</th>
+                    </tr>
+                </thead>
+                <tbody id="leaderboard-body">
+                    <!-- Injected dynamically -->
+                </tbody>
+            </table>
+
+            <button id="btn-race-again" class="cta-btn">RACE AGAIN 🔄</button>
+        </div>
+    </div>
+
+    <!-- Pause Menu Modal -->
+    <div id="pause-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-card pause-card">
+            <div class="pause-header">
+                <span class="pause-badge">⏸ PAUSED</span>
+                <h1 class="game-title">RACE PAUSED</h1>
+            </div>
+
+            <!-- Current Race Overview Stats -->
+            <div class="pause-stats-grid">
+                <div class="pause-stat-item">
+                    <span class="pause-stat-label">POSITION</span>
+                    <span id="pause-stat-pos" class="pause-stat-val">1ST / 6</span>
+                </div>
+                <div class="pause-stat-item">
+                    <span class="pause-stat-label">LAP</span>
+                    <span id="pause-stat-lap" class="pause-stat-val">1 / 3</span>
+                </div>
+                <div class="pause-stat-item">
+                    <span class="pause-stat-label">TIME</span>
+                    <span id="pause-stat-time" class="pause-stat-val">00:00.00</span>
+                </div>
+            </div>
+
+            <!-- Quick Audio Volume Sliders in Pause -->
+            <div class="pause-audio-box">
+                <span class="audio-box-title">🔊 AUDIO SETTINGS</span>
+                <div class="pause-audio-controls">
+                    <div class="pause-slider-item">
+                        <span>BGM</span>
+                        <input type="range" id="pause-slider-music" class="audio-slider" min="0" max="1" step="0.05" value="0.55" title="Music Volume">
+                    </div>
+                    <div class="pause-slider-item">
+                        <span>SFX</span>
+                        <input type="range" id="pause-slider-sfx" class="audio-slider" min="0" max="1" step="0.05" value="0.7" title="SFX Volume">
+                    </div>
+                    <button id="pause-btn-mute" class="hud-btn" style="padding: 6px 12px;" title="Mute Audio">🔊 MUTE</button>
+                </div>
+            </div>
+
+            <!-- Action Buttons Stack -->
+            <div class="pause-actions-stack">
+                <button id="btn-resume-race" class="cta-btn resume-btn">▶ RESUME RACE [ESC / P]</button>
+                <div class="pause-actions-row">
+                    <button id="btn-pause-restart" class="hud-btn pause-action-btn">🔄 RESTART RACE</button>
+                    <button id="btn-pause-main-menu" class="hud-btn pause-action-btn">🏠 MAIN MENU</button>
+                </div>
+            </div>
+
+            <!-- Quick Controls Hint -->
+            <div class="controls-quick-hint">
+                <span><b>W / ↑</b> Accelerate &bull; <b>S / ↓</b> Brake &bull; <b>A / D</b> Steer &bull; <b>SPACE</b> Drift &bull; <b>SHIFT</b> Nitro &bull; <b>ESC / P</b> Pause</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- On-Screen Touch Controls for Mobile/Tablet -->
+    <div id="touch-controls">
+        <div class="touch-cluster">
+            <button id="btn-left" class="touch-btn">◀</button>
+            <button id="btn-right" class="touch-btn">▶</button>
+            <button id="btn-touch-pause" class="touch-btn touch-pause-btn" title="Pause Game">⏸</button>
+        </div>
+        <div class="touch-cluster">
+            <button id="btn-drift" class="touch-btn">💨</button>
+            <button id="btn-nitro" class="touch-btn nitro-touch">⚡</button>
+            <button id="btn-brake" class="touch-btn">🛑</button>
+            <button id="btn-gas" class="touch-btn">▲</button>
+        </div>
+    </div>
+
+    <!-- Game Scripts -->
+    <script src="js/audio.js"></script>
+    <script src="js/track.js"></script>
+    <script src="js/car.js"></script>
+    <script src="js/ai.js"></script>
+    <script src="js/game.js"></script>
+</body>
+</html>
+

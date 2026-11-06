@@ -1,0 +1,19 @@
+{
+  "name": "speed-racer-gp-3d",
+  "version": "1.0.0",
+  "description": "3D High-Octane Arcade Racing Game with multi-car CPU AI and procedural background music",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": [
+    "racing",
+    "game",
+    "threejs",
+    "webgl",
+    "ai",
+    "webaudio"
+  ],
+  "author": "",
+  "license": "MIT"
+}
