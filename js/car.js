@@ -70,6 +70,8 @@ class Car {
         this.rank = 1;
         this.hasPassedHalfway = false;
         this.hasStartedFirstLap = false;
+        this.prevPosition = new THREE.Vector3();
+        this.prevTrackProgress = 0.98;
 
         // Build 3D model
         this._buildModel();
@@ -267,11 +269,13 @@ class Car {
      */
     setGridPosition(pos, heading) {
         this.position.copy(pos);
+        this.prevPosition.copy(pos);
         this.heading = heading;
         this.speed = 0;
         this.velocity.set(0, 0, 0);
         this.root.position.copy(this.position);
         this.root.rotation.y = this.heading;
+        this.prevTrackProgress = 0.98;
     }
 
     /**
@@ -279,6 +283,10 @@ class Car {
      */
     update(dt, input, track) {
         if (!dt || dt > 0.1) dt = 0.016;
+
+        // Save position and track progress before integration for crossing detection
+        this.prevPosition.copy(this.position);
+        this.prevTrackProgress = (this.trackProgress !== undefined) ? this.trackProgress : 0.98;
 
         const isThrottle = input.forward || false;
         const isBraking = input.reverse || false;

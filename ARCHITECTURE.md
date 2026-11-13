@@ -174,7 +174,29 @@ flowchart TD
 
 ---
 
-### 2.5. Procedural Web Audio Engine ([`audio.js`](file:///c:/Users/ppuga/OneDrive/Desktop/AI%20game%202/js/audio.js))
+### 2.5. Race Manager & Next Lap Progression ([`game.js`](file:///c:/Users/ppuga/OneDrive/Desktop/AI%20game%202/js/game.js))
+
+The lap management system controls race progression, finish line crossing validation, and dynamic HUD transitions:
+
+```mermaid
+flowchart TD
+    Start[Grid Launch: z in -42 to -10] --> StartLine[Cross Start Line: z >= 0]
+    StartLine --> Lap1["Lap 1 Active (Timer Started)"]
+    Lap1 --> HalfwayCheck{"Back Half of Circuit? t in [0.35, 0.75]"}
+    HalfwayCheck -- Yes --> SetHalfway["hasPassedHalfway = true"]
+    SetHalfway --> HomeStraight[Exit Turn 6 onto Home Straightaway]
+    HomeStraight --> FinishCheck{"Finish Line Crossing? (z < 0 -> z >= 0 OR t: 0.99 -> 0.01) AND hasPassedHalfway"}
+    FinishCheck -- "Yes & CurrentLap < TotalLaps" --> NextLap["ADVANCE TO NEXT LAP! (Lap++)\n- HUD Lap-Pulse Neon Flash\n- Lap Complete Chime\n- Split Time Banner\n- Reset Lap Timer"]
+    FinishCheck -- "Yes & CurrentLap == TotalLaps" --> FinishRace["RACE COMPLETE!\n- Victory Fanfare\n- Final Standings Leaderboard"]
+```
+
+- **Dual Finish Line Detection**:
+  $$\text{Crossing} = \left(\mathbf{P}_{\text{prev}, z} < 0 \land \mathbf{P}_{\text{curr}, z} \ge 0 \land |x| \le \frac{\text{width}}{2} + 3\right) \lor \left(t_{\text{prev}} > 0.75 \land t_{\text{curr}} < 0.25\right)$$
+  Validated strictly when `hasPassedHalfway === true`, guaranteeing accurate lap transitions with zero false starts.
+
+---
+
+### 2.6. Procedural Web Audio Engine ([`audio.js`](file:///c:/Users/ppuga/OneDrive/Desktop/AI%20game%202/js/audio.js))
 
 100% synthesized through native Web Audio API graph nodes — zero external audio assets:
 

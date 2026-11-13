@@ -85,9 +85,13 @@ Powered 100% by the **Web Audio API** — zero missing files, zero CORS errors, 
 - Stadium floodlights, illuminated cyberpunk sponsor billboards, and perimeter mountains.
 - Real-time radar Mini-Map showing player position and all 5 CPU opponents in live action!
 
-### 5. 1 Turn = 1 Lap Mode & Race Distance Options
-- **1 Turn = 1 Lap (Default)**: The race defaults to **1 Turn (1 Lap)**, so completing 1 full loop around the circuit and crossing the finish line completes the race immediately with checkered flag and victory podium!
-- **Selectable Race Distance**: Easily switch between **1 Turn (1 Lap)**, **3 Turns (3 Laps)**, or **5 Turns (5 Laps)** in the title menu.
-- **Fail-Proof Circuit Detection**: Uses continuous halfway tracking across the back half of the track ($t \in [0.35, 0.75]$) to ensure that 1 full loop around the circuit always registers as 1 lap upon crossing the finish line without false starts.
-- **Lap Splits & Celebrations**: Displays individual lap times upon crossing the finish line, flashes `⚡ NEW BEST!` when setting track records, and triggers victory fanfare with a detailed final leaderboard (Best Lap + Total Race Time).
+### 5. Lap Progression & Race Distance Options
+- **Automatic Next Lap Transition**: Every time your car completes a loop around the circuit and passes under the finish line gantry, the game instantly changes to the **NEXT LAP** (e.g. `LAP 1 / 3` ➔ `LAP 2 / 3` ➔ `LAP 3 / 3` ➔ Finish)!
+- **Dual Finish Line Detection**: Combines 3D coordinate plane crossing ($z < 0 \to z \ge 0$ under the gantry) with spline curve wrap ($t: 0.99 \to 0.01$) alongside halfway checkpoint validation ($t \in [0.35, 0.75]$) so passing the finish line triggers every time without fail.
+- **Neon HUD Lap Flash**: Upon crossing the finish line, the HUD lap counter visually pulses with electric neon cyan/green scaling (`lap-pulse`) and plays a celebratory chime.
+- **Race Distance Selector**:
+  - **3 LAPS (Standard - Default)**: Full 3-lap Grand Prix race with lap transitions and final lap showdown.
+  - **1 LAP (Sprint)**: High-speed single lap dash to the finish line.
+  - **5 LAPS (Endurance)**: Extended race testing endurance, tire management, and nitro timing.
+- **Lap Splits & Celebrations**: Flashes split times on each lap crossing, displays `⚡ NEW BEST!` for record-setting laps, and provides a final podium standings table (Best Lap + Total Time).
 

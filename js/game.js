@@ -17,7 +17,7 @@ class Game {
 
         // Game State
         this.state = 'MENU'; // 'MENU', 'COUNTDOWN', 'RACING', 'PAUSED', 'FINISHED'
-        this.totalLaps = 1; // 1 Turn = 1 Lap
+        this.totalLaps = 3; // 3 Laps standard default
         this.countdownValue = 3;
         this.raceStartTime = 0;
         this.raceTime = 0;
@@ -224,6 +224,8 @@ class Game {
             car.setGridPosition(pos, 0); // heading = 0 (pointing forward along +z)
             car.currentLap = 1;
             car.trackProgress = 0.98;
+            car.prevTrackProgress = 0.98;
+            car.prevPosition = pos.clone();
             car.hasStartedFirstLap = false;
             car.hasPassedHalfway = false;
             car.raceDistance = slot.distBack;
@@ -737,8 +739,8 @@ class Game {
     _updateRaceProgress(now) {
         this.allCars.forEach(car => {
             const trackInfo = this.track.findClosestTrackPoint(car.position);
-            const prevT = car.trackProgress || 0;
             const currentT = trackInfo.t;
+            const prevT = (car.prevTrackProgress !== undefined) ? car.prevTrackProgress : (car.trackProgress || 0);
 
             // Track halfway progression around the circuit (back half of track):
             if (currentT >= 0.35 && currentT <= 0.75) {
@@ -747,51 +749,63 @@ class Game {
 
             // Case A: Initial Start Line Crossing from the starting grid (z < 0 to z >= 0)
             if (!car.hasStartedFirstLap) {
-                if ((currentT >= 0.0 && currentT <= 0.20 && car.position.z >= -0.5) || (prevT > 0.85 && currentT < 0.20)) {
+                const crossedStartLine = (car.prevPosition && car.prevPosition.z < 0 && car.position.z >= 0)
+                    || (car.position.z >= 0 && car.position.z < 50)
+                    || (prevT > 0.85 && currentT < 0.20);
+
+                if (crossedStartLine) {
                     car.hasStartedFirstLap = true;
                     car.lapStartTime = now;
                     car.hasPassedHalfway = false;
                 }
             } else {
-                // Case B: Finish Line Crossing after completing 1 turn around the track
-                // Detect crossing start/finish line (wrap around from >0.75 to <0.25)
-                if (prevT > 0.75 && currentT < 0.25) {
-                    if (car.hasPassedHalfway) {
-                        const lapTime = (now - car.lapStartTime) / 1000;
-                        car.lastLapTime = lapTime;
-                        const isNewBest = (!car.bestLapTime || lapTime < car.bestLapTime);
-                        if (isNewBest) {
-                            car.bestLapTime = lapTime;
+                // Case B: Finish Line Crossing after completing a lap around the track
+                // Dual detection: Spline parameter wrap (0.75+ -> <0.25) OR Physical Finish Line Plane Crossing (z < 0 -> z >= 0)
+                const splineWrap = (prevT > 0.75 && currentT < 0.25);
+                const planeCrossing = car.prevPosition && (car.prevPosition.z < 0 && car.position.z >= 0) && (Math.abs(car.position.x) <= (this.track.trackWidth / 2 + 3));
+
+                if ((splineWrap || planeCrossing) && car.hasPassedHalfway) {
+                    const lapTime = (now - car.lapStartTime) / 1000;
+                    car.lastLapTime = lapTime;
+                    const isNewBest = (!car.bestLapTime || lapTime < car.bestLapTime);
+                    if (isNewBest) {
+                        car.bestLapTime = lapTime;
+                    }
+
+                    // Reset halfway marker and timer for next lap
+                    car.hasPassedHalfway = false;
+                    car.lapStartTime = now;
+
+                    // Advance to NEXT LAP or finish race
+                    if (car.currentLap < this.totalLaps) {
+                        car.currentLap++;
+
+                        if (car.isPlayer) {
+                            if (window.soundSystem) window.soundSystem.playLapComplete();
+                            const timeStr = this._formatTime(lapTime);
+                            const bestTag = isNewBest ? ' ⚡ NEW BEST!' : '';
+
+                            // Flash HUD lap counter
+                            if (this.ui.lap) {
+                                this.ui.lap.classList.remove('lap-pulse');
+                                void this.ui.lap.offsetWidth; // trigger reflow
+                                this.ui.lap.classList.add('lap-pulse');
+                            }
+
+                            if (car.currentLap === this.totalLaps) {
+                                this.showBanner(`🔥 FINAL LAP! (Lap ${car.currentLap - 1}: ${timeStr}${bestTag})`, 3500);
+                            } else {
+                                this.showBanner(`🏁 LAP ${car.currentLap} / ${this.totalLaps}! (Lap ${car.currentLap - 1}: ${timeStr}${bestTag})`, 3000);
+                            }
                         }
+                    } else {
+                        // Completed all laps!
+                        car.currentLap = this.totalLaps;
+                        car.hasFinished = true;
+                        car.totalRaceTime = (now - this.raceStartTime) / 1000;
 
-                        // Reset halfway marker and timer for next turn/lap
-                        car.hasPassedHalfway = false;
-                        car.lapStartTime = now;
-
-                        // Check if race completes or advances
-                        if (car.currentLap < this.totalLaps) {
-                            car.currentLap++;
-
-                            if (car.isPlayer) {
-                                if (window.soundSystem) window.soundSystem.playLapComplete();
-                                const timeStr = this._formatTime(lapTime);
-                                const bestTag = isNewBest ? ' ⚡ NEW BEST!' : '';
-
-                                if (car.currentLap === this.totalLaps) {
-                                    this.showBanner(`🔥 FINAL TURN! (Turn ${car.currentLap - 1}: ${timeStr}${bestTag})`, 3500);
-                                } else {
-                                    this.showBanner(`TURN ${car.currentLap} / ${this.totalLaps} (${timeStr}${bestTag})`, 3000);
-                                }
-                            }
-                        } else {
-                            // Completed 1 Turn = 1 Lap!
-                            car.currentLap = this.totalLaps + 1;
-                            car.hasFinished = true;
-                            car.totalRaceTime = (now - this.raceStartTime) / 1000;
-
-                            if (car.isPlayer) {
-                                this._finishRace();
-                            }
+                        if (car.isPlayer) {
+                            this._finishRace();
                         }
                     }
                 }
@@ -821,11 +835,11 @@ class Game {
         if (window.soundSystem) window.soundSystem.playFinishRace();
 
         if (this.player && this.player.rank === 1) {
-            this.showBanner('🏆 1 TURN COMPLETE! 1ST PLACE WINNER! 🏁', 4500);
+            this.showBanner('🏆 1ST PLACE WINNER! RACE COMPLETE! 🏁', 4500);
         } else {
             const playerRank = this.player ? this.player.rank : 1;
             const suffix = ['TH', 'ST', 'ND', 'RD', 'TH', 'TH', 'TH'][playerRank] || 'TH';
-            this.showBanner(`🏁 1 TURN COMPLETE! ${playerRank}${suffix} PLACE 🏁`, 4500);
+            this.showBanner(`🏁 RACE COMPLETE! ${playerRank}${suffix} PLACE 🏁`, 4500);
         }
 
         // Sort final results
